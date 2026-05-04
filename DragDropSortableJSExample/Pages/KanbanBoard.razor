@@ -1,0 +1,176 @@
+@page "/kanban"
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<PageTitle>Kanban Board</PageTitle>
+
+<h2 class="mb-4">Kanban Board</h2>
+
+<div class="kanban-board">
+    @foreach (var column in _columns)
+    {
+        <div class="kanban-column">
+            <div class="kanban-column-header">@column.Name</div>
+            @foreach (var lane in column.Lanes)
+            {
+                <div class="kanban-lane-header">@lane.Name</div>
+                <div class="kanban-lane" id="@lane.Id">
+                    @foreach (var item in lane.Items)
+                    {
+                        <div class="kanban-card priority-@item.Priority.ToString().ToLower()" data-item-id="@item.Id">
+                            <div class="kanban-card-title">@item.Title</div>
+                            @if (!string.IsNullOrWhiteSpace(item.Description))
+                            {
+                                <div class="kanban-card-desc">@item.Description</div>
+                            }
+                            <div class="kanban-card-meta">
+                                <span class="kanban-priority badge priority-badge-@item.Priority.ToString().ToLower()">@item.Priority</span>
+                                @if (!string.IsNullOrWhiteSpace(item.Assignee))
+                                {
+                                    <span class="kanban-assignee">👤 @item.Assignee</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (!string.IsNullOrEmpty(_statusMessage))
+{
+    <div class="alert alert-info mt-3">@_statusMessage</div>
+}
+
+@code {
+    private List<BoardColumn> _columns = new();
+    private DotNetObjectReference<KanbanBoard>? _dotNetRef;
+    private string _statusMessage = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        _columns = BuildInitialBoard();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotNetRef = DotNetObjectReference.Create(this);
+            await InitializeSortable();
+        }
+    }
+
+    private async Task InitializeSortable()
+    {
+        var laneIds = _columns
+            .SelectMany(c => c.Lanes)
+            .Select(l => l.Id)
+            .ToArray();
+
+        await JS.InvokeVoidAsync("kanban.initialize", _dotNetRef, laneIds);
+    }
+
+    [JSInvokable]
+    public async Task OnItemDropped(string itemId, string fromLaneId, string toLaneId, int newIndex)
+    {
+        var allLanes = _columns.SelectMany(c => c.Lanes).ToList();
+
+        var fromLane = allLanes.FirstOrDefault(l => l.Id == fromLaneId);
+        var toLane = allLanes.FirstOrDefault(l => l.Id == toLaneId);
+        var item = fromLane?.Items.FirstOrDefault(i => i.Id == itemId);
+
+        if (fromLane == null || toLane == null || item == null)
+            return;
+
+        fromLane.Items.Remove(item);
+
+        var clampedIndex = Math.Clamp(newIndex, 0, toLane.Items.Count);
+        toLane.Items.Insert(clampedIndex, item);
+
+        if (fromLaneId == toLaneId)
+            _statusMessage = $"Reordered \"{item.Title}\" within {GetLaneName(toLaneId)}.";
+        else
+            _statusMessage = $"Moved \"{item.Title}\" → {GetLaneName(toLaneId)}.";
+
+        await InvokeAsync(StateHasChanged);
+
+        // Re-initialize Sortable after state update so new DOM elements are tracked
+        await InitializeSortable();
+    }
+
+    private string GetLaneName(string laneId)
+    {
+        foreach (var col in _columns)
+        {
+            var lane = col.Lanes.FirstOrDefault(l => l.Id == laneId);
+            if (lane != null)
+                return $"{col.Name} / {lane.Name}";
+        }
+        return laneId;
+    }
+
+    private static List<BoardColumn> BuildInitialBoard()
+    {
+        var todoLane = new Lane
+        {
+            Id = "lane-todo",
+            Name = "Todo",
+            Items = new List<WorkItem>
+            {
+                new() { Id = "item-1", Title = "Set up CI pipeline", Description = "Configure GitHub Actions for build and test", Assignee = "Alice", Priority = WorkItemPriority.High },
+                new() { Id = "item-2", Title = "Write API documentation", Description = "OpenAPI / Swagger docs for REST endpoints", Assignee = "Bob", Priority = WorkItemPriority.Medium },
+                new() { Id = "item-3", Title = "Accessibility audit", Description = "Run axe and fix critical issues", Assignee = "", Priority = WorkItemPriority.Low },
+            }
+        };
+
+        var doingLane = new Lane
+        {
+            Id = "lane-doing",
+            Name = "Doing",
+            Items = new List<WorkItem>
+            {
+                new() { Id = "item-4", Title = "Implement drag & drop board", Description = "SortableJS + Blazor WASM", Assignee = "Alice", Priority = WorkItemPriority.High },
+                new() { Id = "item-5", Title = "Design data model", Description = "Columns, lanes, work items", Assignee = "Carol", Priority = WorkItemPriority.Medium },
+            }
+        };
+
+        var reviewLane = new Lane
+        {
+            Id = "lane-review",
+            Name = "Review",
+            Items = new List<WorkItem>
+            {
+                new() { Id = "item-6", Title = "Login page redesign", Description = "UX improvements based on user feedback", Assignee = "Bob", Priority = WorkItemPriority.Medium },
+            }
+        };
+
+        var doneLane = new Lane
+        {
+            Id = "lane-done",
+            Name = "Done",
+            Items = new List<WorkItem>
+            {
+                new() { Id = "item-7", Title = "Project scaffolding", Description = "Initial Blazor WASM project created", Assignee = "Carol", Priority = WorkItemPriority.Low },
+                new() { Id = "item-8", Title = "Choose drag & drop library", Description = "Evaluated SortableJS, dnd-kit, interact.js", Assignee = "Alice", Priority = WorkItemPriority.Low },
+            }
+        };
+
+        return new List<BoardColumn>
+        {
+            new() { Id = "col-todo", Name = "Todo", Lanes = new List<Lane> { todoLane } },
+            new() { Id = "col-inprogress", Name = "In Progress", Lanes = new List<Lane> { doingLane, reviewLane } },
+            new() { Id = "col-done", Name = "Done", Lanes = new List<Lane> { doneLane } },
+        };
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_dotNetRef != null)
+        {
+            await JS.InvokeVoidAsync("kanban.dispose");
+            _dotNetRef.Dispose();
+        }
+    }
+}

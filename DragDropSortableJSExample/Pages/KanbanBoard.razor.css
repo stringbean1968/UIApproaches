@@ -1,0 +1,130 @@
+/* Kanban Board Layout */
+.kanban-board {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    overflow-x: auto;
+    padding-bottom: 1rem;
+    align-items: flex-start;
+}
+
+.kanban-column {
+    background: #f4f5f7;
+    border-radius: 6px;
+    min-width: 260px;
+    max-width: 300px;
+    flex-shrink: 0;
+    padding: 0.5rem;
+}
+
+.kanban-column-header {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #172b4d;
+    padding: 0.5rem 0.4rem;
+    border-bottom: 2px solid #dee2e6;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.kanban-lane-header {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #5e6c84;
+    text-transform: uppercase;
+    padding: 0.3rem 0.25rem 0.1rem;
+    margin-top: 0.25rem;
+}
+
+/* Lane: the actual drop zone */
+.kanban-lane {
+    background: #ebecf0;
+    border-radius: 4px;
+    min-height: 60px;
+    padding: 0.4rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Cards */
+.kanban-card {
+    background: #fff;
+    border-radius: 4px;
+    padding: 0.6rem 0.75rem;
+    margin-bottom: 0.4rem;
+    box-shadow: 0 1px 3px rgba(9,30,66,.12);
+    cursor: grab;
+    border-left: 4px solid #dee2e6;
+    transition: box-shadow 0.15s;
+}
+
+    .kanban-card:hover {
+        box-shadow: 0 3px 8px rgba(9,30,66,.22);
+    }
+
+    .kanban-card.priority-high {
+        border-left-color: #de350b;
+    }
+
+    .kanban-card.priority-medium {
+        border-left-color: #ff991f;
+    }
+
+    .kanban-card.priority-low {
+        border-left-color: #36b37e;
+    }
+
+.kanban-card-title {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #172b4d;
+    margin-bottom: 0.2rem;
+}
+
+.kanban-card-desc {
+    font-size: 0.78rem;
+    color: #5e6c84;
+    margin-bottom: 0.4rem;
+}
+
+.kanban-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.kanban-assignee {
+    font-size: 0.75rem;
+    color: #6b778c;
+}
+
+/* Priority badges */
+.priority-badge-high {
+    background-color: #de350b;
+    color: #fff;
+}
+
+.priority-badge-medium {
+    background-color: #ff991f;
+    color: #fff;
+}
+
+.priority-badge-low {
+    background-color: #36b37e;
+    color: #fff;
+}
+
+/* SortableJS visual feedback */
+.sortable-ghost {
+    opacity: 0.4;
+    background: #c8ebfb !important;
+}
+
+.sortable-chosen {
+    box-shadow: 0 5px 15px rgba(9,30,66,.3) !important;
+}
+
+.sortable-drag {
+    opacity: 0.9;
+}
