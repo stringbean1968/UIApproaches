@@ -6,7 +6,7 @@
 
 <h2 class="mb-4">Kanban Board</h2>
 
-<div class="kanban-board">
+<div class="kanban-board" id="kanban-board-scroll">
     @foreach (var column in _columns)
     {
         <div class="kanban-column">
@@ -47,6 +47,7 @@
     private List<BoardColumn> _columns = new();
     private DotNetObjectReference<KanbanBoard>? _dotNetRef;
     private string _statusMessage = string.Empty;
+    private bool _needsReinit = false;
 
     protected override void OnInitialized()
     {
@@ -60,6 +61,11 @@
             _dotNetRef = DotNetObjectReference.Create(this);
             await InitializeSortable();
         }
+        else if (_needsReinit)
+        {
+            _needsReinit = false;
+            await InitializeSortable();
+        }
     }
 
     private async Task InitializeSortable()
@@ -69,9 +75,13 @@
             .Select(l => l.Id)
             .ToArray();
 
-        await JS.InvokeVoidAsync("kanban.initialize", _dotNetRef, laneIds);
+        await JS.InvokeVoidAsync("kanban.initialize", _dotNetRef, laneIds, "kanban-board-scroll");
     }
 
+    // Re-initialization is deferred to OnAfterRenderAsync (via _needsReinit) rather than called
+    // directly after StateHasChanged. This guarantees the DOM is fully updated before Sortable
+    // is torn down and recreated, avoiding a race where Sortable disposes before Blazor has
+    // finished patching the DOM.
     [JSInvokable]
     public async Task OnItemDropped(string itemId, string fromLaneId, string toLaneId, int newIndex)
     {
@@ -94,10 +104,8 @@
         else
             _statusMessage = $"Moved \"{item.Title}\" → {GetLaneName(toLaneId)}.";
 
+        _needsReinit = true;
         await InvokeAsync(StateHasChanged);
-
-        // Re-initialize Sortable after state update so new DOM elements are tracked
-        await InitializeSortable();
     }
 
     private string GetLaneName(string laneId)
@@ -157,11 +165,139 @@
             }
         };
 
+        var backlogLane = new Lane
+        {
+            Id = "lane-backlog",
+            Name = "Backlog",
+            Items = new List<WorkItem>
+            {
+                new() { Id = "item-9",  Title = "Performance profiling",   Description = "Profile WASM startup and runtime",       Assignee = "Bob",   Priority = WorkItemPriority.Medium },
+                new() { Id = "item-10", Title = "Dark-mode theme",         Description = "CSS variables for light/dark toggle",     Assignee = "",      Priority = WorkItemPriority.Low },
+            }
+        };
+
+        var analysisLane = new Lane
+        {
+            Id = "lane-analysis",
+            Name = "Analysis",
+            Items = new List<WorkItem>
+            {
+                new() { Id = "item-11", Title = "User research interviews", Description = "5 x 30-min sessions with stakeholders", Assignee = "Carol", Priority = WorkItemPriority.High },
+            }
+        };
+
+        var designLane = new Lane
+        {
+            Id = "lane-design",
+            Name = "Design",
+            Items = new List<WorkItem>
+            {
+                new() { Id = "item-12", Title = "Wireframes v2",      Description = "Updated flows after research findings", Assignee = "Alice", Priority = WorkItemPriority.Medium },
+                new() { Id = "item-13", Title = "Component library",  Description = "Figma tokens → Blazor CSS variables",   Assignee = "Bob",   Priority = WorkItemPriority.Low },
+            }
+        };
+
+        var frontendLane = new Lane
+        {
+            Id = "lane-frontend",
+            Name = "Frontend",
+            Items = new List<WorkItem>
+            {
+                new() { Id = "item-14", Title = "Responsive nav menu", Description = "Hamburger + drawer on mobile", Assignee = "Alice", Priority = WorkItemPriority.Medium },
+            }
+        };
+
+        var backendLane = new Lane
+        {
+            Id = "lane-backend",
+            Name = "Backend",
+            Items = new List<WorkItem>
+            {
+                new() { Id = "item-15", Title = "REST endpoint hardening", Description = "Rate-limiting and input validation", Assignee = "Carol", Priority = WorkItemPriority.High },
+            }
+        };
+
+        var unitTestLane = new Lane
+        {
+            Id = "lane-unittest",
+            Name = "Unit Tests",
+            Items = new List<WorkItem>
+            {
+                new() { Id = "item-16", Title = "Service layer tests", Description = "xUnit + Moq for business logic", Assignee = "Bob", Priority = WorkItemPriority.Medium },
+            }
+        };
+
+        var integrationTestLane = new Lane
+        {
+            Id = "lane-integration",
+            Name = "Integration Tests",
+            Items = new List<WorkItem>()
+        };
+
+        var stagingLane = new Lane
+        {
+            Id = "lane-staging",
+            Name = "Staging",
+            Items = new List<WorkItem>
+            {
+                new() { Id = "item-17", Title = "Smoke-test on staging", Description = "Manual check of critical paths", Assignee = "Alice", Priority = WorkItemPriority.High },
+            }
+        };
+
+        var rcLane = new Lane
+        {
+            Id = "lane-rc",
+            Name = "Release Candidate",
+            Items = new List<WorkItem>()
+        };
+
+        var deployedLane = new Lane
+        {
+            Id = "lane-deployed",
+            Name = "Deployed",
+            Items = new List<WorkItem>
+            {
+                new() { Id = "item-18", Title = "v0.1.0 hotfix",   Description = "Patched null-ref in login flow",      Assignee = "Carol", Priority = WorkItemPriority.High },
+                new() { Id = "item-19", Title = "v0.2.0 release",  Description = "Feature-complete milestone shipped",  Assignee = "Alice", Priority = WorkItemPriority.Medium },
+            }
+        };
+
+        var monitoringLane = new Lane
+        {
+            Id = "lane-monitoring",
+            Name = "Monitoring",
+            Items = new List<WorkItem>
+            {
+                new() { Id = "item-20", Title = "Error-rate alerting", Description = "PagerDuty rules for 5xx spikes", Assignee = "Bob", Priority = WorkItemPriority.High },
+            }
+        };
+
+        var archivedLane = new Lane
+        {
+            Id = "lane-archived",
+            Name = "Archived",
+            Items = new List<WorkItem>
+            {
+                new() { Id = "item-21", Title = "Prototype spike",     Description = "Throwaway React PoC — superseded", Assignee = "Carol", Priority = WorkItemPriority.Low },
+                new() { Id = "item-22", Title = "Legacy import tool",  Description = "Replaced by new ETL pipeline",     Assignee = "",      Priority = WorkItemPriority.Low },
+            }
+        };
+
         return new List<BoardColumn>
         {
-            new() { Id = "col-todo", Name = "Todo", Lanes = new List<Lane> { todoLane } },
-            new() { Id = "col-inprogress", Name = "In Progress", Lanes = new List<Lane> { doingLane, reviewLane } },
-            new() { Id = "col-done", Name = "Done", Lanes = new List<Lane> { doneLane } },
+            new() { Id = "col-backlog",     Name = "Backlog",              Lanes = new List<Lane> { backlogLane } },
+            new() { Id = "col-todo",        Name = "Todo",                 Lanes = new List<Lane> { todoLane } },
+            new() { Id = "col-analysis",    Name = "Analysis",             Lanes = new List<Lane> { analysisLane } },
+            new() { Id = "col-design",      Name = "Design",               Lanes = new List<Lane> { designLane } },
+            new() { Id = "col-inprogress",  Name = "In Progress",          Lanes = new List<Lane> { doingLane, reviewLane } },
+            new() { Id = "col-dev",         Name = "Development",          Lanes = new List<Lane> { frontendLane, backendLane } },
+            new() { Id = "col-testing",     Name = "Testing",              Lanes = new List<Lane> { unitTestLane, integrationTestLane } },
+            new() { Id = "col-staging",     Name = "Staging",              Lanes = new List<Lane> { stagingLane } },
+            new() { Id = "col-rc",          Name = "Release Candidate",    Lanes = new List<Lane> { rcLane } },
+            new() { Id = "col-deployed",    Name = "Deployed",             Lanes = new List<Lane> { deployedLane } },
+            new() { Id = "col-monitoring",  Name = "Monitoring",           Lanes = new List<Lane> { monitoringLane } },
+            new() { Id = "col-done",        Name = "Done",                 Lanes = new List<Lane> { doneLane } },
+            new() { Id = "col-archived",    Name = "Archived",             Lanes = new List<Lane> { archivedLane } },
         };
     }
 

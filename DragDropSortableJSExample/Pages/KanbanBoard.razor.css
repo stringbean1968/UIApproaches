@@ -2,8 +2,11 @@
 .kanban-board {
     display: flex;
     flex-direction: row;
+    flex-wrap: nowrap;
     gap: 1rem;
+    width: 100%;
     overflow-x: auto;
+    overflow-y: visible;
     padding-bottom: 1rem;
     align-items: flex-start;
 }
@@ -11,9 +14,11 @@
 .kanban-column {
     background: #f4f5f7;
     border-radius: 6px;
-    min-width: 260px;
-    max-width: 300px;
-    flex-shrink: 0;
+    /* Fixed width prevents columns expanding/contracting with content */
+    width: 320px;
+    min-width: 320px;
+    max-width: 320px;
+    flex: 0 0 320px;
     padding: 0.5rem;
 }
 
